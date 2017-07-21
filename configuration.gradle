@@ -1,0 +1,114 @@
+
+project.ext {
+
+  cfgVersion = "2.1.0"
+  
+  cfgGroup = "org.openmuc"
+
+  cfgCopyDependencies = true
+
+  cfgCopyToRoot = false
+
+  cfgSignPom = true
+
+  cfgRepository = project.properties.sonatypeRepository
+
+  cfgSnapshotRepository = project.properties.sonatypeSnapshotRepository
+
+  cfgRepositoryUser = project.properties.sonatypeUser
+
+  cfgRepositoryPass = project.properties.sonatypePass
+
+  javaProjects = allprojects
+
+  distributionProjects = allprojects.findAll {
+    it.getPath() == ":"
+  }
+
+  docProjects = distributionProjects
+
+  repositoryProjects = distributionProjects
+}
+
+tasks.withType(Tar) {
+
+  into(project.name) {
+    from("./") {
+      include "build.gradle"
+      include "configuration.gradle"
+      include "license/**"
+      include "doc/CHANGELOG.txt"
+      include "run-scripts/**"
+      include "gradle/wrapper/**"
+      include "gradlew"
+      include "gradlew.bat"
+      include "build/libs-all/**"
+      include "dependencies/**"
+      include "src/**"
+    }
+
+    if (name.equals("tar") ){
+      exclude "**/dependencies/**/src"
+    }
+
+  }
+
+  into(project.name + "/doc/user-guide/") {
+    from("./build/asciidoc/html5/") {
+      include "**"
+    }
+    from("./build/asciidoc/pdf/") {
+      include "*.pdf"
+    }
+  }
+
+  into(project.name + "/doc/") {
+    from("./build/docs/") {
+      include "javadoc/**"
+    }
+  }
+
+
+}
+
+
+//------------------project specific configurations--------------------
+
+apply plugin: "java"
+apply plugin: "eclipse"
+apply plugin: "osgi"
+apply plugin: "maven"
+apply plugin: "signing"
+
+
+dependencies {
+        compile group: "org.openmuc", name: "jrxtx", version: "1.0.0"
+}
+
+jar {
+  manifest {
+    name = "j62056"
+    instruction "Export-Package", "!*.internal.*,*"
+  }
+}
+
+uploadArchives {
+  repositories {
+    mavenDeployer {
+      pom.project {
+        name "j62056"
+        description "j62056, a library for reading meters using IEC 62056-21 in modes A, B, C or D."
+        
+        licenses {
+          license {
+            name "GNU Lesser General Public License"
+            url "http://www.gnu.org/licenses/lgpl-2.1.html"
+            distribution "repo"
+          }
+        }
+        
+      }
+    }
+  }
+}
+

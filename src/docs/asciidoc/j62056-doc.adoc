@@ -1,0 +1,97 @@
+= j62056 User Guide
+include::common-settings.txt[]
+
+:numbered:
+
+== Intro
+
+j62056 is a Java implementation of the IEC 62056-21 protocol (modes A,
+B, C, and D). It can be used to develop individual IEC 62056-21 master
+applications that read metering data from slaves such as gas, water,
+heat, or electricity meters.  The library includes an application that
+reads a given meter and prints the received data to stdout. j62056 is
+licensed under the LGPL version 2.1 or later.
+
+== Distribution
+
+After extracting the distribution tar file the j62056 library can be
+found in the directory _build/libs-all_.
+
+=== Dependencies
+
+Besides the j62056 library the folder _build/libs-all/_ contains the
+following external library:
+
+jRxTx::
+
+   jRXTX for accessing the serial port (UART). jRxTx is licensed under
+   LGPL(v2.1 or later) + linking exception. It consists of a Java part
+   and a native part. Note that you have to install the native part of
+   as explained in our
+   link:https://www.openmuc.org/faq/how-do-i-get-serial-communication-to-work-with-rxtx/[FAQ].
+
+The _dependencies_ folder in the distribution contains more detailed
+license and copyright information about the dependency.
+
+=== Reader Application
+
+A command line application is part of the library that can be used to
+read a meter. You can execute it using the _j62056-reader_ script
+found in the folder _run-scripts_.  Executing the script without any
+parameters will print help information to the screen.
+
+Instead of running the application from the terminal you can create
+Eclipse project files as explained in our
+link:https://www.openmuc.org/faq/gradle_getting_started/[FAQs] and run
+it from within Eclipse.
+
+== Using j62056
+
+See the j62056
+link:https://www.openmuc.org/projects/j62056/javadoc/[Javadoc] for
+documentation of the API. You may want to take a look at the source
+code of the reader app which is part of the distribution. You can find
+the source code of Reader.java in
+src/main/java/org/openmuc/j62056/app/.
+
+== Modifying and Compiling j62056
+
+We use the Gradle build automation tool. The distribution contains a
+fully functional gradle build file (_build.gradle_). Thus if you
+changed code and want to rebuild a library you can do it easily with
+Gradle. Also if you want to import our software into Eclipse you can
+easily create Eclipse project files using Gradle. Just follow the
+instructions on our
+link:https://www.openmuc.org/faq/gradle_getting_started/[FAQ site].
+
+== How IEC 62056-21 Works
+
+IEC 62056-21 offers modes A,B,C,D and E. The most commonly used mode
+is mode C. The mode C message exchange looks like this:
+    
+Master --------Request message (300 baud)-------- > Slave
+
+Master < ----Identification message (300 baud)----- Slave
+
+Master --------Acknowledgment (300 baud)--------- > Slave
+
+Master < ---------Data message (new baud rate)----- Slave
+
+The request message may contain optionally contain a device address.
+The identification message contains:
+
+- the manufacturer ID consisting of three upper case letters
+
+- the requested baud rate to change to for the data message
+
+- the meter identification field
+
+- the enhanced identification field
+
+
+== Authors
+
+Developers:
+
+* Stefan Feuerhahn
+* Dirk Zimmermann
