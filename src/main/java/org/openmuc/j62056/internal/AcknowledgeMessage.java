@@ -38,16 +38,16 @@ public class AcknowledgeMessage {
     private final byte[] acknowledgeMessageBytes;
 
     private final ProtocolControlCharacter protocolControlCharacter;
-    private final AcknowledgeMode acknowledgeMode;
+    private final int acknowledgeMode;
     private final int baudRate;
 
     public AcknowledgeMessage(int baudRate, ProtocolControlCharacter protocolControlCharacter,
-            AcknowledgeMode acknowledgeMode) {
+            int acknowledgeMode) {
         this.baudRate = baudRate;
         this.protocolControlCharacter = protocolControlCharacter;
         this.acknowledgeMode = acknowledgeMode;
         acknowledgeMessageBytes = new byte[] { 0x06, (byte) protocolControlCharacter.value(),
-                getCodeFromBaudRate(baudRate), (byte) acknowledgeMode.getValue(), '\r', '\n' };
+                getCodeFromBaudRate(baudRate), (byte) acknowledgeMode, '\r', '\n' };
     }
 
     public void send(DataOutputStream os) throws IOException {

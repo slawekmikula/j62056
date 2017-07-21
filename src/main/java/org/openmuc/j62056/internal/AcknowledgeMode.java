@@ -40,7 +40,7 @@ public enum AcknowledgeMode {
         this.value = value;
     }
 
-    public int getValue() {
+    public char getValue() {
         return this.value;
     }
 

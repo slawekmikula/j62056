@@ -120,10 +120,10 @@ public class IdentificationMessage {
         }
         enhancedId = tempEnhancedId;
 
-        byte[] identificationBytes = new byte[16];
+        byte[] identificationBytes = new byte[32];
         int i = 0;
         while (b != '\r') {
-            if (i == 16) {
+            if (i == 32) {
                 throw new IOException("Expected carriage return character not received");
             }
             identificationBytes[i] = b;

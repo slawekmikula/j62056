@@ -33,6 +33,8 @@ import org.openmuc.j62056.internal.IdentificationMessage;
 import org.openmuc.j62056.internal.ProtocolControlCharacter;
 import org.openmuc.j62056.internal.ProtocolMode;
 import org.openmuc.j62056.internal.RequestMessage;
+import org.openmuc.j62056.internal.SelectMessage;
+import org.openmuc.j62056.internal.SelectReplyMessage;
 import org.openmuc.jrxtx.DataBits;
 import org.openmuc.jrxtx.Parity;
 import org.openmuc.jrxtx.SerialPort;
@@ -42,7 +44,7 @@ import org.openmuc.jrxtx.StopBits;
 /**
  * Represents a serial communication port that can be used to read meters using IEC 62056-21 modes A, B, C or D. Create
  * and open a port using {@link Builder}.
- * 
+ *
  */
 public class Iec21Port {
 
@@ -57,6 +59,9 @@ public class Iec21Port {
     private final DataOutputStream os;
     private final DataInputStream is;
     private final RequestMessage requestMessage;
+    private final SelectMessage selectMessage;
+    private final String selectExpect;
+    private final char acknowledgeMode;
 
     private ModeDListener listener = null;
     private boolean closed = false;
@@ -96,7 +101,7 @@ public class Iec21Port {
 
     /**
      * A builder for Iec21Ports.
-     * 
+     *
      */
     public static class Builder {
 
@@ -109,12 +114,15 @@ public class Iec21Port {
         private String deviceAddress = "";
         private boolean fixedBaudRate = false;
         private String requestStartCharacters = null;
+        private String selectManufacturerData = null;
+        private String selectExpectData = null;
+        private char acknowledgeMode = AcknowledgeMode.DATA_READOUT.getValue();
 
         private final String serialPortName;
 
         /**
          * Create an Iec21Port builder.
-         * 
+         *
          * @param serialPortName
          *            examples for serial port identifiers on Linux are "/dev/ttyS0" or "/dev/ttyUSB0" and on Windows
          *            "COM1"
@@ -133,7 +141,7 @@ public class Iec21Port {
          * acknowledgment) has been completely sent.
          * <p>
          * The default value is 0.
-         * 
+         *
          * @param baudRateChangeDelay
          *            the baud rate change delay
          * @return the builder
@@ -148,7 +156,7 @@ public class Iec21Port {
          * <p>
          * The default is 300 baud for modes A, B, and C and 2400 baud for mode D. This function allows to change the
          * initial baud rate in case the meter does not use the default initial baud rate.
-         * 
+         *
          * @param initialBaudrate
          *            the initial baud rate
          * @return the builder
@@ -163,7 +171,7 @@ public class Iec21Port {
          * an infinite timeout.
          * <p>
          * The default value is 5000 (= 5 seconds).
-         * 
+         *
          * @param timeout
          *            the maximum time in ms to wait for new data.
          * @return the builder
@@ -177,7 +185,7 @@ public class Iec21Port {
          * Set the device address which is transmitted as part of the request message that is sent to the meter.
          * <p>
          * The default value is the empty string.
-         * 
+         *
          * @param deviceAddress
          *            the device address
          * @return the builder
@@ -191,7 +199,7 @@ public class Iec21Port {
          * Sets the RequestMessage start characters.
          * <p>
          * Default value is: /? <br>
-         * 
+         *
          * @param requestStartCharacters
          *            characters at the start of a RequestMessage
          * @return the builder
@@ -202,10 +210,46 @@ public class Iec21Port {
         }
 
         /**
+         * Sets the Manufacturer Data for select.
+         *
+         * @param selectManufacturerData
+         *            payload for select message
+         * @return the builder
+         */
+        public Builder setSelectManufacturerData(String selectManufacturerData) {
+            this.selectManufacturerData = selectManufacturerData;
+            return this;
+        }
+
+        /**
+         * Sets the Manufacturer Data for expected select response.
+         *
+         * @param selectExpectData
+         *            payload for expected select reply
+         * @return the builder
+         */
+        public Builder setSelectExpectData(String selectExpectData) {
+            this.selectExpectData = selectExpectData;
+            return this;
+        }
+
+        /**
+         * Sets the acknowledgeMode character
+         *
+         * @param acknowledgeMode
+         *            value for Acknowledge Mode
+         * @return the builder
+         */
+        public Builder setAcknowledgeMode(char acknowledgeMode) {
+            this.acknowledgeMode = acknowledgeMode;
+            return this;
+        }
+
+        /**
          * Enable or disable verbose output to standard out.
          * <p>
          * Default is disabled.
-         * 
+         *
          * @param verbose
          *            if true enable verbose mode
          * @return the builder
@@ -220,7 +264,7 @@ public class Iec21Port {
          * <p>
          * In mode C communication starts with baud rate 300 and then by default changes to a baud rate suggested by the
          * meter. Enable a fixed baud rate if the baud rate shall NOT change.
-         * 
+         *
          * @param fixedBaudRate
          *            if true enable fixed baud rate
          * @return the builder
@@ -232,9 +276,9 @@ public class Iec21Port {
 
         /**
          * Build and open the Iec21Port.
-         * 
+         *
          * @return the opened Iec21Port
-         * 
+         *
          * @throws IOException
          *             if an error occurs while opening the associated serial port (e.g. when the serial port is
          *             occupied).
@@ -261,6 +305,9 @@ public class Iec21Port {
         verbose = builder.verbose;
         requestMessage = new RequestMessage(builder.deviceAddress, builder.requestStartCharacters);
         fixedBaudRate = builder.fixedBaudRate;
+        selectMessage = new SelectMessage(builder.selectManufacturerData);
+        selectExpect = builder.selectExpectData;
+        acknowledgeMode = builder.acknowledgeMode;
 
         serialPort = SerialPortBuilder.newBuilder(builder.serialPortName)
                 .setDataBits(DataBits.DATABITS_7)
@@ -272,6 +319,18 @@ public class Iec21Port {
 
         is = new DataInputStream(serialPort.getInputStream());
         os = new DataOutputStream(new BufferedOutputStream(serialPort.getOutputStream()));
+    }
+
+    public final SerialPort getSerialPort() {
+        return serialPort;
+    }
+
+    public final DataOutputStream getOutputStream() {
+        return os;
+    }
+
+    public final DataInputStream getInputStream() {
+        return is;
     }
 
     /**
@@ -293,7 +352,7 @@ public class Iec21Port {
      * Requests a data message from the remote device using IEC 62056-21 Mode A, B or C. The data message received is
      * parsed and returned. The returned data message also contains some information fields from the identification
      * message sent by the meter.
-     * 
+     *
      * @return The response data message.
      * @throws IOException
      *             if any kind of IO error occurs
@@ -322,6 +381,22 @@ public class Iec21Port {
             }
         }
 
+        // select message
+        if (!selectMessage.isEmpty()) {
+            selectMessage.send(os);
+            if (verbose) {
+               Helper.debug("Sending ", selectMessage.toString());
+            }
+            SelectReplyMessage replyMessage = new SelectReplyMessage(is);
+            if (verbose) {
+                Helper.debug("Received ", replyMessage.toString());
+            }
+            if (!replyMessage.getReplyMessage().equals(selectExpect)) {
+                throw new IOException(
+                    "Received unexpected select reply message: " + replyMessage.getReplyMessage());
+            }
+        }
+
         requestMessage.send(os);
         if (verbose) {
             Helper.debug("Sending ", requestMessage.toString());
@@ -337,8 +412,9 @@ public class Iec21Port {
             if (fixedBaudRate) {
                 baudRate = serialPort.getBaudRate();
             }
-            AcknowledgeMessage acknowledgeMessage = new AcknowledgeMessage(baudRate, ProtocolControlCharacter.NORMAL,
-                    AcknowledgeMode.DATA_READOUT);
+            AcknowledgeMessage acknowledgeMessage = new AcknowledgeMessage(baudRate,
+                    ProtocolControlCharacter.NORMAL,
+                    acknowledgeMode);
 
             if (verbose) {
                 Helper.debug("Sending ", acknowledgeMessage.toString());
@@ -381,7 +457,7 @@ public class Iec21Port {
 
     /**
      * Returns true if this port has been closed.
-     * 
+     *
      * @return true if this port has been closed
      */
     public boolean isClosed() {
@@ -390,7 +466,7 @@ public class Iec21Port {
 
     /**
      * Listen for mode D messages.
-     * 
+     *
      * @param listener
      *            A listener for mode D messages
      * @throws IOException
